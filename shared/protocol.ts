@@ -15,17 +15,18 @@ export function parseClientMessage(data: string): ClientMessage | null {
         }
         return null;
       case 'input':
-        if (typeof message.sequence === 'number' && typeof message.forward === 'number' && typeof message.strafe === 'number' &&
+        if (Number.isSafeInteger(message.sequence) && Number(message.sequence) > 0 && typeof message.forward === 'number' && typeof message.strafe === 'number' &&
             typeof message.yaw === 'number' && typeof message.pitch === 'number') {
           return {
             type: 'input',
-            sequence: message.sequence,
+            sequence: Number(message.sequence),
             forward: clamp(message.forward, -1, 1),
             strafe: clamp(message.strafe, -1, 1),
             yaw: clamp(message.yaw, -Math.PI, Math.PI),
             pitch: clamp(message.pitch, -Math.PI / 2, Math.PI / 2),
             sprint: message.sprint === true,
             crouch: message.crouch === true,
+            jump: message.jump === true,
           };
         }
         return null;

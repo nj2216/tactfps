@@ -5,6 +5,7 @@ import { WEAPONS, type WeaponId } from '../../shared/weapons';
 interface RuntimePlayer extends PlayerState {
   fireAt: number;
   reloadUntil: number;
+  verticalVelocity: number;
   plantStarted: number | null;
   defuseStarted: number | null;
   abilityReadyAt: number[];
@@ -41,7 +42,7 @@ export class GameRoom {
   get size(): number { return this.players.size; }
 
   publicPlayers(): PlayerState[] {
-    return [...this.players.values()].map(({ fireAt: _fireAt, reloadUntil: _reloadUntil, plantStarted: _plantStarted, defuseStarted: _defuseStarted, abilityReadyAt: _abilityReadyAt, ...player }) => player);
+    return [...this.players.values()].map(({ fireAt: _fireAt, reloadUntil: _reloadUntil, verticalVelocity: _verticalVelocity, plantStarted: _plantStarted, defuseStarted: _defuseStarted, abilityReadyAt: _abilityReadyAt, ...player }) => player);
   }
 
   matchState(): MatchState {
@@ -68,6 +69,7 @@ export class GameRoom {
       health: GAME.maxHealth, armor: 0, alive: true, weapon: 'sidearm', ammo: WEAPONS.sidearm.magazineSize,
       reserveAmmo: WEAPONS.sidearm.reserveAmmo, credits: 800, kills: 0, deaths: 0, assists: 0,
       lastInputSequence: 0, fireAt: 0, reloadUntil: 0, plantStarted: null, defuseStarted: null, abilityReadyAt: [0, 0, 0, 0],
+      verticalVelocity: 0,
     };
     this.players.set(id, player);
     if (this.players.size >= 2 && this.phase === 'lobby') this.startRound();
@@ -82,12 +84,13 @@ export class GameRoom {
     }
   }
 
-  input(id: string, data: { sequence: number; forward: number; strafe: number; yaw: number; pitch: number; sprint: boolean; crouch: boolean }): void {
+  input(id: string, data: { sequence: number; forward: number; strafe: number; yaw: number; pitch: number; sprint: boolean; crouch: boolean; jump: boolean }): void {
     const player = this.players.get(id);
     if (!player || !player.alive || data.sequence <= player.lastInputSequence) return;
     player.lastInputSequence = data.sequence;
     player.yaw = data.yaw;
     player.pitch = data.pitch;
+    if (data.jump && player.y <= 0) player.verticalVelocity = 7.5;
     const speed = GAME.movementSpeed * (data.crouch ? GAME.crouchMultiplier : data.sprint ? GAME.sprintMultiplier : 1);
     const forward = Math.max(-1, Math.min(1, data.forward));
     const strafe = Math.max(-1, Math.min(1, data.strafe));
@@ -197,6 +200,12 @@ export class GameRoom {
 
   tick(dt: number): void {
     this.elapsed += dt;
+    for (const player of this.players.values()) {
+      if (!player.alive || player.y <= 0 && player.verticalVelocity <= 0) continue;
+      player.verticalVelocity -= 19 * dt;
+      player.y = Math.max(0, player.y + player.verticalVelocity * dt);
+      if (player.y === 0) player.verticalVelocity = 0;
+    }
     if (this.phase === 'buy') {
       this.secondsLeft -= dt;
       if (this.secondsLeft <= 0) this.beginCombat();
@@ -335,6 +344,7 @@ export class GameRoom {
       player.x = player.team === 'attackers' ? -34 : 34;
       player.z = 0;
       player.y = 0;
+      player.verticalVelocity = 0;
       player.plantStarted = null;
       player.defuseStarted = null;
       player.fireAt = 0;
@@ -359,7 +369,7 @@ export class GameRoom {
   }
 
   private publicPlayer(player: RuntimePlayer): PlayerState {
-    const { fireAt: _fireAt, reloadUntil: _reloadUntil, plantStarted: _plantStarted, defuseStarted: _defuseStarted, abilityReadyAt: _abilityReadyAt, ...state } = player;
+    const { fireAt: _fireAt, reloadUntil: _reloadUntil, verticalVelocity: _verticalVelocity, plantStarted: _plantStarted, defuseStarted: _defuseStarted, abilityReadyAt: _abilityReadyAt, ...state } = player;
     return state;
   }
 }

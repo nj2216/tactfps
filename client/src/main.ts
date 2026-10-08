@@ -25,9 +25,13 @@ joinButton.addEventListener('click', () => {
   network?.close();
   network = new NetworkClient(`${scheme}://${host}:${port}`, (message) => game?.handle(message), (message) => {
     status.textContent = message;
-    if (message.startsWith('Unable') || message.startsWith('Disconnected')) joinButton.disabled = false;
+    if (message.startsWith('Unable') || message.startsWith('Disconnected')) {
+      joinButton.disabled = false;
+      document.getElementById('menu')?.removeAttribute('hidden');
+    }
   });
-  game ??= new Game(network);
+  if (game) game.setNetwork(network);
+  else game = new Game(network);
   network.send({ type: 'join', name, version: 1 });
 });
 

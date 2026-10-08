@@ -38,7 +38,7 @@ export interface MatchState {
 
 export type ClientMessage =
   | { type: 'join'; name: string; version: 1 }
-  | { type: 'input'; sequence: number; forward: number; strafe: number; yaw: number; pitch: number; sprint: boolean; crouch: boolean }
+  | { type: 'input'; sequence: number; forward: number; strafe: number; yaw: number; pitch: number; sprint: boolean; crouch: boolean; jump: boolean }
   | { type: 'shoot'; yaw: number; pitch: number }
   | { type: 'reload' }
   | { type: 'buy'; item: WeaponId | 'armor' }

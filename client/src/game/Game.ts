@@ -20,7 +20,7 @@ export class Game {
   private readonly renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
   private readonly remotes = new Map<string, RemoteEntity>();
   private readonly keys = new Set<string>();
-  private readonly network: NetworkClient;
+  private network: NetworkClient;
   private playerId = '';
   private local: PlayerState | undefined;
   private match: MatchState | undefined;
@@ -28,7 +28,10 @@ export class Game {
   private yaw = Math.PI / 2;
   private pitch = 0;
   private x = -34;
+  private y = 0;
   private z = 0;
+  private verticalVelocity = 0;
+  private jumpQueued = false;
   private lastFrame = performance.now();
   private noticeTimer = 0;
   private firing = false;
@@ -85,7 +88,13 @@ export class Game {
     } else if (message.type === 'error') {
       this.notify(message.message);
       $('status').textContent = message.message;
+      $('menu').removeAttribute('hidden');
+      $('join').removeAttribute('disabled');
     }
+  }
+
+  setNetwork(network: NetworkClient): void {
+    this.network = network;
   }
 
   private readonly frame = (now: number) => {
@@ -107,6 +116,9 @@ export class Game {
     const dz = (Math.cos(this.yaw) * forward - Math.sin(this.yaw) * strafe) * speed * dt / length;
     this.x = Math.max(-GAME.mapBounds, Math.min(GAME.mapBounds, this.x + dx));
     this.z = Math.max(-GAME.mapBounds, Math.min(GAME.mapBounds, this.z + dz));
+    this.verticalVelocity -= 19 * dt;
+    this.y = Math.max(0, this.y + this.verticalVelocity * dt);
+    if (this.y === 0) this.verticalVelocity = 0;
   }
 
   private updateRender(time: number, dt: number): void {
@@ -115,7 +127,8 @@ export class Game {
       const dz = this.local.z - this.z;
       if (Math.hypot(dx, dz) > 2) { this.x = this.local.x; this.z = this.local.z; }
       else { this.x += dx * Math.min(dt * 8, 1); this.z += dz * Math.min(dt * 8, 1); }
-      this.camera.position.set(this.x, 1.62, this.z);
+      this.y += (this.local.y - this.y) * Math.min(dt * 8, 1);
+      this.camera.position.set(this.x, 1.62 + this.y, this.z);
       this.camera.rotation.set(this.pitch, this.yaw + Math.PI, 0, 'YXZ');
       this.weaponModel.position.y = -0.26 + (this.firing ? -0.09 : 0);
       this.weaponModel.rotation.x = this.firing ? -0.08 : 0;
@@ -190,11 +203,20 @@ export class Game {
       strafe: Number(this.keys.has('KeyD')) - Number(this.keys.has('KeyA')),
       yaw: this.yaw, pitch: this.pitch,
       sprint: this.keys.has('ShiftLeft'), crouch: this.keys.has('ControlLeft') || this.keys.has('ControlRight'),
+      jump: this.jumpQueued,
     });
+    this.jumpQueued = false;
   }
 
   private readonly keyDown = (event: KeyboardEvent) => {
     this.keys.add(event.code);
+    if (event.code === 'Space') {
+      event.preventDefault();
+      if (this.y <= 0) {
+        this.jumpQueued = true;
+        this.verticalVelocity = 7.5;
+      }
+    }
     if (!this.local || event.repeat) return;
     if (event.code === 'KeyR') this.network.send({ type: 'reload' });
     if (event.code === 'KeyB') this.toggleBuy(!this.buyOpen);

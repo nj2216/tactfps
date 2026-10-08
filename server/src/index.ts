@@ -13,6 +13,7 @@ const port = Number(process.env.PORT ?? 3000);
 const dist = join(process.cwd(), 'dist');
 const contentTypes: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png' };
 const clients = new Map<WebSocket, string>();
+const aliveSockets = new WeakSet<WebSocket>();
 
 const server = createServer(async (request, response) => {
   const requestedPath = new URL(request.url ?? '/', 'http://localhost').pathname;
@@ -42,6 +43,8 @@ const sockets = new WebSocketServer({ server, maxPayload: 2048 });
 
 sockets.on('connection', (socket) => {
   let playerId: string | undefined;
+  aliveSockets.add(socket);
+  socket.on('pong', () => aliveSockets.add(socket));
   socket.on('message', (raw) => {
     const message = parseClientMessage(raw.toString());
     if (!message) {
@@ -118,6 +121,16 @@ setInterval(() => room.tick(1 / GAME.tickRate), 1000 / GAME.tickRate);
 setInterval(() => {
   if (room.snapshotDue()) broadcast({ type: 'snapshot', timestamp: Date.now(), players: room.publicPlayers(), match: room.matchState() });
 }, 1000 / GAME.snapshotRate);
+setInterval(() => {
+  for (const socket of sockets.clients) {
+    if (!aliveSockets.has(socket)) {
+      socket.terminate();
+      continue;
+    }
+    aliveSockets.delete(socket);
+    socket.ping();
+  }
+}, 15_000);
 
 server.listen(port, host, () => {
   console.log('\nLAN Tactical FPS Server\n');
