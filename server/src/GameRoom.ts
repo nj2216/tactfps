@@ -16,6 +16,11 @@ const obstacles = [
   { x: 14, z: 9, halfX: 2, halfZ: 3 },
   { x: -22, z: 12, halfX: 4, halfZ: 1 },
   { x: 22, z: -12, halfX: 4, halfZ: 1 },
+  ...[-17, 17].flatMap((z) => [
+    { x: -15, z, halfX: 12, halfZ: 0.6 },
+    { x: 0, z, halfX: 4, halfZ: 0.6 },
+    { x: 15, z, halfX: 12, halfZ: 0.6 },
+  ]),
 ];
 
 export class GameRoom {
@@ -101,19 +106,24 @@ export class GameRoom {
     shooter.fireAt = now + 1000 / weapon.fireRate;
     shooter.ammo -= 1;
     const direction = { x: Math.sin(yaw) * Math.cos(pitch), y: Math.sin(pitch), z: Math.cos(yaw) * Math.cos(pitch) };
-    let nearest: { player: RuntimePlayer; distance: number; headshot: boolean } | undefined;
+    const origin = { x: shooter.x, y: shooter.y + 1.55, z: shooter.z };
+    let nearest: { player: RuntimePlayer; distance: number; multiplier: number; headshot: boolean } | undefined;
     for (const target of this.players.values()) {
       if (!target.alive || target.team === shooter.team || target.id === shooter.id) continue;
-      const center = { x: target.x - shooter.x, y: 1.05 - (shooter.y + 1.55), z: target.z - shooter.z };
+      const center = { x: target.x - origin.x, y: target.y + 1.25 - origin.y, z: target.z - origin.z };
       const along = center.x * direction.x + center.y * direction.y + center.z * direction.z;
       if (along < 0 || along > weapon.range) continue;
       const closest = { x: direction.x * along, y: direction.y * along, z: direction.z * along };
-      const miss = Math.hypot(center.x - closest.x, center.y - closest.y, center.z - closest.z);
-      if (miss < GAME.playerRadius + weapon.spread * along && (!nearest || along < nearest.distance)) {
-        nearest = { player: target, distance: along, headshot: direction.y > 0.12 };
+      const hitHeight = origin.y + direction.y * along - target.y;
+      const miss = Math.hypot(center.x - closest.x, center.z - closest.z);
+      if (hitHeight >= 0.15 && hitHeight <= 2.65 && miss < GAME.playerRadius + weapon.spread * along &&
+          !this.isBlocked(origin, direction, along) && (!nearest || along < nearest.distance)) {
+        const headshot = hitHeight >= 2.05;
+        const multiplier = headshot ? weapon.headMultiplier : hitHeight < 0.75 ? weapon.legMultiplier : weapon.bodyMultiplier;
+        nearest = { player: target, distance: along, multiplier, headshot };
       }
     }
-    if (nearest) this.damage(shooter, nearest.player, weapon.damage * (nearest.headshot ? weapon.headMultiplier : weapon.bodyMultiplier), nearest.headshot);
+    if (nearest) this.damage(shooter, nearest.player, weapon.damage * nearest.multiplier, nearest.headshot);
     return true;
   }
 
@@ -230,6 +240,31 @@ export class GameRoom {
     const nextZ = Math.max(-GAME.mapBounds, Math.min(GAME.mapBounds, player.z + dz));
     if (!obstacles.some((wall) => Math.abs(nextX - wall.x) < wall.halfX + GAME.playerRadius && Math.abs(player.z - wall.z) < wall.halfZ + GAME.playerRadius)) player.x = nextX;
     if (!obstacles.some((wall) => Math.abs(player.x - wall.x) < wall.halfX + GAME.playerRadius && Math.abs(nextZ - wall.z) < wall.halfZ + GAME.playerRadius)) player.z = nextZ;
+  }
+
+  private isBlocked(origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }, maxDistance: number): boolean {
+    return obstacles.some((wall) => {
+      let near = 0;
+      let far = maxDistance;
+      const axes: Array<[number, number, number, number]> = [
+        [origin.x, direction.x, wall.x, wall.halfX],
+        [origin.y, direction.y, 1.7, 1.7],
+        [origin.z, direction.z, wall.z, wall.halfZ],
+      ];
+      for (const [position, vector, center, halfSize] of axes) {
+        const low = center - halfSize;
+        const high = center + halfSize;
+        if (Math.abs(vector) < 0.0001) {
+          if (position < low || position > high) return false;
+          continue;
+        }
+        const first = (low - position) / vector;
+        const second = (high - position) / vector;
+        near = Math.max(near, Math.min(first, second));
+        far = Math.min(far, Math.max(first, second));
+      }
+      return far >= near && near < maxDistance && far > 0;
+    });
   }
 
   private updateObjective(): void {

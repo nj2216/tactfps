@@ -17,10 +17,10 @@ test('server rejects invalid purchase and permits valid buy-phase purchase', () 
   const room = new GameRoom();
   room.join('a', 'Alpha');
   room.join('b', 'Bravo');
-  const player = room.publicPlayers().find((entry) => entry.id === 'a')!;
   assert.equal(room.buy('a', 'rifle'), false);
   assert.equal(room.buy('a', 'armor'), true);
-  assert.equal(room.publicPlayers().find((entry) => entry.id === 'a')?.armor, GAME.maxArmor);
+  const player = room.publicPlayers().find((entry) => entry.id === 'a')!;
+  assert.equal(player.armor, GAME.maxArmor);
   assert.equal(player.credits, 200);
 });
 
@@ -42,11 +42,17 @@ test('shooting spends ammo, enforces fire rate, and applies authoritative damage
   room.join('b', 'Bravo');
   room.tick(GAME.buyPhaseSeconds);
   let sequence = 0;
-  for (let i = 0; i < 200; i += 1) {
+  for (let i = 0; i < 60; i += 1) {
+    room.input('a', { sequence: ++sequence, forward: 0, strafe: -1, yaw: Math.PI / 2, pitch: 0, sprint: false, crouch: false });
+  }
+  for (let i = 0; i < 230; i += 1) {
     room.input('a', { sequence: ++sequence, forward: 1, strafe: 0, yaw: Math.PI / 2, pitch: 0, sprint: false, crouch: false });
   }
   const initialHealth = room.publicPlayers().find((player) => player.id === 'b')!.health;
-  assert.equal(room.shoot('a', Math.PI / 2, 0, 100_000), true);
+  const attacker = room.publicPlayers().find((player) => player.id === 'a')!;
+  const defender = room.publicPlayers().find((player) => player.id === 'b')!;
+  const aimYaw = Math.atan2(defender.x - attacker.x, defender.z - attacker.z);
+  assert.equal(room.shoot('a', aimYaw, 0, 100_000), true);
   assert.equal(room.shoot('a', Math.PI / 2, 0, 100_000), false);
   assert.ok(room.publicPlayers().find((player) => player.id === 'b')!.health < initialHealth);
   assert.equal(room.publicPlayers().find((player) => player.id === 'a')!.ammo, WEAPONS.sidearm.magazineSize - 1);
