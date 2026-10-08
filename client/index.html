@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#10191d" />
+    <title>TACTICAL STRIKE</title>
+  </head>
+  <body>
+    <div id="app">
+      <div id="game"></div>
+      <section id="menu" class="panel">
+        <div class="eyebrow">LOCAL TACTICAL COMBAT</div>
+        <h1>TACTICAL<br /><span>STRIKE</span></h1>
+        <p>Squad up. Hold the site. Own the round.</p>
+        <label>PLAYER NAME<input id="name" maxlength="18" value="Rookie" autocomplete="nickname" /></label>
+        <div class="connection">
+          <label>SERVER IP<input id="host" maxlength="64" /></label>
+          <label>PORT<input id="port" maxlength="5" value="3000" inputmode="numeric" /></label>
+        </div>
+        <button id="join" class="primary">JOIN LAN MATCH</button>
+        <p class="hint">Enter the host computer's LAN IP. The game server must be running on port 3000.</p>
+        <p id="status" role="status">Use W A S D to move after joining. Click the game to lock your pointer.</p>
+      </section>
+      <section id="hud" hidden>
+        <header><div id="round">WAITING</div><div id="score">0 — 0</div><div id="clock">--:--</div></header>
+        <div id="objective"></div>
+        <div id="crosshair">+</div>
+        <div id="feed"></div>
+        <div id="bottom">
+          <div class="vitals"><strong id="health">100</strong> HP <span id="armor"></span><small id="credits">¢800</small></div>
+          <div class="weapon-info"><b id="weapon">P-8 Sidearm</b><span id="ammo">12 / 48</span></div>
+          <div class="abilities"><span>Q <i></i></span><span>E <i></i></span><span>C <i></i></span><span>X <i></i></span></div>
+        </div>
+        <aside id="roster"></aside>
+        <div id="notice"></div>
+        <div id="help">WASD move · Shift sprint · Ctrl crouch · Space jump · LMB fire · R reload · B buy · F objective · Tab scoreboard · Esc menu</div>
+        <div id="buy" class="panel" hidden><h2>FIELD ARMORY</h2><p id="buy-credits"></p><div id="shop"></div><button id="close-buy">CLOSE [B]</button></div>
+        <div id="scoreboard" class="panel" hidden><h2>ROUND ROSTER</h2><div id="score-list"></div></div>
+      </section>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
