@@ -18,7 +18,6 @@ export class Game {
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(82, window.innerWidth / window.innerHeight, 0.08, 180);
   private readonly renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-  private readonly localModel = new THREE.Group();
   private readonly remotes = new Map<string, RemoteEntity>();
   private readonly keys = new Set<string>();
   private readonly network: NetworkClient;

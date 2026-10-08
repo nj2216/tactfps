@@ -1,4 +1,5 @@
 import type { ClientMessage, ServerMessage } from './types';
+import type { WeaponId } from './weapons';
 
 export const PROTOCOL_VERSION = 1;
 
@@ -37,7 +38,7 @@ export function parseClientMessage(data: string): ClientMessage | null {
         return { type: 'reload' };
       case 'buy':
         if (['sidearm', 'smg', 'rifle', 'shotgun', 'sniper', 'knife', 'armor'].includes(String(message.item))) {
-          return { type: 'buy', item: message.item as ClientMessage & never };
+          return { type: 'buy', item: message.item as WeaponId | 'armor' };
         }
         return null;
       case 'plant':

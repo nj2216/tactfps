@@ -24,7 +24,7 @@ export class GameRoom {
   private round = 0;
   private attackersScore = 0;
   private defendersScore = 0;
-  private secondsLeft = GAME.roundSeconds;
+  private secondsLeft: number = GAME.roundSeconds;
   private objective: MatchState['objective'] = 'none';
   private objectivePosition: MatchState['objectivePosition'] = null;
   private message = 'Waiting for players';
@@ -166,7 +166,22 @@ export class GameRoom {
     const readyAt = player.abilityReadyAt[slot] ?? 0;
     if (this.elapsed < readyAt) return false;
     player.abilityReadyAt[slot] = this.elapsed + [12, 18, 22, 60][slot]!;
-    this.publish(`${player.name} used ability ${slot + 1}`, 'info');
+    if (slot === 0 || slot === 3) {
+      const radius = slot === 0 ? 5 : 12;
+      const damage = slot === 0 ? 35 : 18;
+      for (const target of this.players.values()) {
+        if (target.alive && target.team !== player.team && Math.hypot(target.x - player.x, target.z - player.z) <= radius) {
+          this.damage(player, target, damage, false);
+        }
+      }
+      this.publish(`${player.name} triggered a ${slot === 0 ? 'shock pulse' : 'wide scan'}`, 'info');
+    } else if (slot === 1) {
+      this.move(player, Math.sin(player.yaw) * 6, Math.cos(player.yaw) * 6);
+      this.publish(`${player.name} dashed forward`, 'info');
+    } else {
+      player.armor = Math.min(GAME.maxArmor, player.armor + 30);
+      this.publish(`${player.name} deployed a personal shield`, 'info');
+    }
     return true;
   }
 
